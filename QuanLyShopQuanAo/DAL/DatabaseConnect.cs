@@ -1,47 +1,151 @@
 ﻿using System;
 using System.Data;
 using System.Data.SqlClient;
+using System.Configuration;
 
 namespace QuanLyShopQuanAo.DAL
 {
-    public class DatabaseConnect
+    public class DataProvider
     {
-        private string connectionString =
-         "Data Source=.;Initial Catalog=QuanLyCuaHangQuanAo;Integrated Security=True";
-        public SqlConnection GetConnection()
+        // Đọc từ App.config, không hard-code
+        private static string connectionString =
+            ConfigurationManager.ConnectionStrings["QuanLyShopQuanAo"]
+                                .ConnectionString;
+
+        // Singleton instance (dùng chung 1 object)
+        private static DataProvider instance;
+        public static DataProvider Instance
+        {
+            get
+            {
+                if (instance == null)
+                    instance = new DataProvider();
+                return instance;
+            }
+        }
+        private DataProvider() { }
+
+        // Tạo và mở kết nối 
+        private SqlConnection GetConnection()
         {
             return new SqlConnection(connectionString);
         }
 
-        public DataTable ExecuteQuery(string query)
+        // ExecuteQuery: SELECT → trả về DataTable
+        // Dùng SqlParameter[] chống SQL Injection
+        // Có try/catch xử lý lỗi SQL
+        public DataTable ExecuteQuery(
+            string query,
+            SqlParameter[] parameters = null)
         {
-            using (SqlConnection conn = GetConnection())
+            DataTable dt = new DataTable();
+            try
             {
-                conn.Open();
-                SqlDataAdapter adapter = new SqlDataAdapter(query, conn);
-                DataTable dt = new DataTable();
-                adapter.Fill(dt);
-                return dt;
+                using (SqlConnection conn = GetConnection())
+                {
+                    conn.Open();
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.CommandType = CommandType.Text;
+                        if (parameters != null)
+                            cmd.Parameters.AddRange(parameters);
+
+                        using (SqlDataAdapter adapter = new SqlDataAdapter(cmd))
+                        {
+                            adapter.Fill(dt);
+                        }
+                    }
+                }
+            }
+            catch (SqlException ex)
+            {
+                // Lỗi từ SQL Server (sai query, mất kết nối...)
+                throw new Exception("Lỗi truy vấn CSDL: " + ex.Message, ex);
+            }
+            catch (Exception ex)
+            {
+                // Lỗi khác (null, config sai...)
+                throw new Exception("Lỗi hệ thống: " + ex.Message, ex);
+            }
+            return dt;
+        }
+
+        // ExecuteNonQuery: INSERT/UPDATE/DELETE 
+        // Trả về số dòng bị ảnh hưởng (-1 nếu lỗi)
+        public int ExecuteNonQuery(
+            string query,
+            SqlParameter[] parameters = null)
+        {
+            try
+            {
+                using (SqlConnection conn = GetConnection())
+                {
+                    conn.Open();
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.CommandType = CommandType.Text;
+                        if (parameters != null)
+                            cmd.Parameters.AddRange(parameters);
+
+                        return cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (SqlException ex)
+            {
+                throw new Exception("Lỗi thực thi lệnh CSDL: " + ex.Message, ex);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Lỗi hệ thống: " + ex.Message, ex);
             }
         }
 
-        public int ExecuteNonQuery(string query)
+        // ExecuteScalar: trả về 1 giá trị duy nhất
+        // Dùng cho: COUNT(*), SUM(), MAX(), SCOPE_IDENTITY()
+        public object ExecuteScalar(
+            string query,
+            SqlParameter[] parameters = null)
         {
-            using (SqlConnection conn = GetConnection())
+            try
             {
-                conn.Open();
-                SqlCommand cmd = new SqlCommand(query, conn);
-                return cmd.ExecuteNonQuery();
+                using (SqlConnection conn = GetConnection())
+                {
+                    conn.Open();
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.CommandType = CommandType.Text;
+                        if (parameters != null)
+                            cmd.Parameters.AddRange(parameters);
+
+                        return cmd.ExecuteScalar();
+                    }
+                }
+            }
+            catch (SqlException ex)
+            {
+                throw new Exception("Lỗi truy vấn giá trị CSDL: " + ex.Message, ex);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Lỗi hệ thống: " + ex.Message, ex);
             }
         }
 
-        public object ExecuteScalar(string query)
+        // Dùng khi khởi động app để báo lỗi sớm
+        public bool KiemTraKetNoi()
         {
-            using (SqlConnection conn = GetConnection())
+            try
             {
-                conn.Open();
-                SqlCommand cmd = new SqlCommand(query, conn);
-                return cmd.ExecuteScalar();
+                using (SqlConnection conn = GetConnection())
+                {
+                    conn.Open();
+                    return true;
+                }
+            }
+            catch
+            {
+                return false;
             }
         }
     }
