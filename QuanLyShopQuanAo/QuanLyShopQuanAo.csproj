@@ -85,6 +85,7 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="BUS\" />
+    <Folder Include="Database\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
