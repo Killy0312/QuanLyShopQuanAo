@@ -3,7 +3,6 @@ using QuanLyShopQuanAo.DAL;
 using System.Data;
 using System.Collections.Generic;
 using System.ComponentModel;
-
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -21,11 +20,21 @@ namespace QuanLyShopQuanAo
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            DatabaseConnect db = new DatabaseConnect();
+            try
+            {
 
-            DataTable dt = db.ExecuteQuery("SELECT * FROM SanPham");
+                DataTable dt = DataProvider.Instance.ExecuteQuery("SELECT * FROM SanPham");
 
-            dataGridView1.DataSource = dt;
+
+                if (dt != null)
+                {
+                    MessageBox.Show($"Kết nối Database THÀNH CÔNG! Đã lấy được {dt.Rows.Count} sản phẩm.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"KẾT NỐI THẤT BẠI!\nChi tiết lỗi: {ex.Message}", "Báo lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void dataGridView1_CellContentClick(object sender, DataGridViewCellEventArgs e)
